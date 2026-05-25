@@ -1,0 +1,24 @@
+<apex:page standardController="Approval_Framework_Config__c" recordSetVar="configs" sidebar="false" showHeader="false">
+    <apex:includeLightning />
+
+    <div id="lwcHost" />
+
+    <script>
+        // Get the IDs of the records selected in the List View
+        var selectedIds = '{!selected}'; 
+        
+        $Lightning.use("c:BulkUploaderApp", function() {
+            $Lightning.createComponent("c:BulkUploader",
+                { 
+                    // Match these property names to @api variables in your LWC JS
+                    recordIds: selectedIds,
+                    isListView: true 
+                },
+                "lwcHost",
+                function(cmp) {
+                    console.log("BulkUploader LWC loaded on List View");
+                }
+            );
+        });
+    </script>
+</apex:page>

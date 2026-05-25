@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Approval_Framework_Config__c</fullName>
+    <label>Approval Framework Config</label>
+    <referenceTo>Approval_Framework_Config__c</referenceTo>
+    <relationshipLabel>Approval Conditions</relationshipLabel>
+    <relationshipName>Approval_Conditions</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <trackTrending>false</trackTrending>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

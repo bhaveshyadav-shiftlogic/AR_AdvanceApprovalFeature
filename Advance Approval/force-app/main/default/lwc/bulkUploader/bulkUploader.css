@@ -1,0 +1,177 @@
+/* ── Preview table ──────────────────────────────────────────────── */
+.preview-table th {
+    white-space: nowrap;
+    font-size: 11px;
+    padding: 4px 6px;
+}
+.preview-table td {
+    font-size: 11px;
+    padding: 3px 6px;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.error-row td {
+    background-color: #fff8f8 !important;
+}
+
+/* ── Condition count badge in preview table ─────────────────────── */
+.condition-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 12px;
+    background: #0176d3;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: help;
+}
+
+/* ── Step path ──────────────────────────────────────────────────── */
+.slds-path__item a {
+    cursor: default;
+}
+.bulk-path-wrap {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    margin-bottom: 1.5rem;
+}
+.path-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    height: 44px;
+}
+.path-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 0 28px;
+    height: 100%;
+    width: 100%;
+    background: #f3f3f3;
+    border: 1px solid #dddbda;
+    font-size: 13px;
+    color: #706e6b;
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);
+    white-space: nowrap;
+}
+.path-item:first-child .path-inner {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%);
+    padding-left: 18px;
+}
+.path-item.complete .path-inner {
+    background: #cdefc4;
+    color: #2e7d32;
+    font-weight: 500;
+}
+.path-item.active .path-inner {
+    background: #0176d3;
+    color: #fff;
+    font-weight: 500;
+}
+.step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+    background: rgba(0,0,0,0.1);
+}
+.path-item.active .step-num { background: rgba(255,255,255,0.25); }
+
+/* ── File drop zone ─────────────────────────────────────────────── */
+.file-drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 140px;
+    border: 2px dashed #0176d3;
+    border-radius: 8px;
+    background: #f0f6ff;
+    cursor: pointer;
+    padding: 24px 16px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    text-align: center;
+}
+.file-drop-zone:hover {
+    background: #e0eeff;
+    border-color: #014486;
+}
+.hidden-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* ── Step 1 instruction box ─────────────────────────────────────── */
+.instruction-box {
+    background: #f8f9ff;
+    border-left: 4px solid #0176d3;
+}
+.instruction-box ul {
+    padding-left: 1.25rem;
+}
+.instruction-box li {
+    font-size: 13px;
+    margin-bottom: 6px;
+    line-height: 1.5;
+}
+
+/* Parent / child column colour labels used in the instruction table */
+.badge-parent {
+    display: inline-block;
+    background: #BDD7EE;
+    color: #014486;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.badge-child {
+    display: inline-block;
+    background: #C6EFCE;
+    color: #1b5e20;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* ── Step 1 example table ───────────────────────────────────────── */
+.example-table-wrap {
+    overflow-x: auto;
+}
+.example-table {
+    font-size: 11px;
+    min-width: 640px;
+}
+.example-table .col-parent {
+    background: #deeaf1;
+    color: #014486;
+}
+.example-table .col-child {
+    background: #e2efda;
+    color: #1b5e20;
+}
+.example-table .continuation-row .col-parent.empty-cell {
+    background: #f0f5f8;
+    color: #aaa;
+    font-style: italic;
+    font-size: 10px;
+}

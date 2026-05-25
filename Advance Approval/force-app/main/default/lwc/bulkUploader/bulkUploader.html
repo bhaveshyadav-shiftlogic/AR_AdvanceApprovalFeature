@@ -1,0 +1,333 @@
+<template>
+    <lightning-card title="Bulk Upload — Approval Framework Config" icon-name="utility:upload">
+        <div class="slds-p-around_medium">
+
+            <!-- Step Indicator -->
+            <div class="bulk-path-wrap">
+                <template for:each={pathSteps} for:item="step">
+                    <div key={step.id} class={step.wrapClass}>
+                        <div class="path-inner">
+                            <span class="step-num">{step.label}</span>
+                            <span class="step-title">{step.title}</span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 STEP 1: Download Template
+                 ═══════════════════════════════════════════════════════════ -->
+            <template if:true={isStep1}>
+                <div class="slds-box slds-m-top_medium slds-theme_shade">
+                    <div class="slds-media slds-media_center">
+                        <div class="slds-media__figure">
+                            <lightning-icon icon-name="doctype:excel" size="large"></lightning-icon>
+                        </div>
+                        <div class="slds-media__body">
+                            <h2 class="slds-text-heading_medium slds-m-bottom_x-small">Download the Excel Template</h2>
+                            <p class="slds-text-body_regular slds-m-bottom_small">
+                                Download the predefined template, fill in your data, and upload it back.
+                            </p>
+                            <lightning-button
+                                label="Download Template"
+                                icon-name="utility:download"
+                                variant="brand"
+                                onclick={downloadTemplate}>
+                            </lightning-button>
+                            <lightning-button
+                                label="Skip — Already Have File"
+                                variant="neutral"
+                                class="slds-m-left_small"
+                                onclick={goToStep2}>
+                            </lightning-button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 STEP 2: Upload File
+                 ═══════════════════════════════════════════════════════════ -->
+            <template if:true={isStep2}>
+                <div class="slds-box slds-m-top_medium">
+                    <h2 class="slds-text-heading_medium slds-m-bottom_small">Upload Filled Excel File</h2>
+
+                    <div class="file-drop-zone" onclick={triggerFileInput}>
+                        <lightning-icon icon-name="doctype:excel" size="medium" class="slds-m-bottom_x-small"></lightning-icon>
+                        <p class="slds-text-body_regular slds-m-top_x-small">
+                            <strong>Click to browse</strong> or drag &amp; drop your Excel file here
+                        </p>
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                            Accepted: .xlsx, .xls &nbsp;|&nbsp; Max rows: 5,000
+                        </p>
+                        <template if:true={fileName}>
+                            <p class="slds-m-top_x-small slds-text-body_small" style="color:#0176d3;font-weight:500;">
+                                <lightning-icon icon-name="utility:attach" size="xx-small"></lightning-icon>
+                                &nbsp;{fileName}
+                            </p>
+                        </template>
+                        <input
+                            type="file"
+                            accept=".xlsx,.xls"
+                            class="hidden-file-input"
+                            onchange={handleFileChange}
+                        />
+                    </div>
+
+                    <template if:true={isProcessing}>
+                        <div class="slds-m-top_medium slds-align_absolute-center">
+                            <lightning-spinner alternative-text="Parsing file..." size="medium"></lightning-spinner>
+                            <p class="slds-m-top_small slds-text-align_center">Parsing Excel file...</p>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="slds-m-top_small">
+                    <lightning-button label="Back" icon-name="utility:back" onclick={goToStep1}></lightning-button>
+                </div>
+            </template>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 STEP 3: Preview & Validate
+                 ═══════════════════════════════════════════════════════════ -->
+            <template if:true={isStep3}>
+                <div class="slds-m-top_medium">
+
+                    <!-- Summary Bar -->
+                    <div class="slds-grid slds-gutters slds-m-bottom_medium">
+                        <div class="slds-col slds-size_1-of-4">
+                            <div class="slds-box slds-theme_default slds-text-align_center">
+                                <p class="slds-text-heading_large slds-text-color_brand">{totalRows}</p>
+                                <p class="slds-text-body_small">Config Records</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4">
+                            <div class="slds-box slds-theme_default slds-text-align_center">
+                                <p class="slds-text-heading_large" style="color:#2e7d32;">{validRows}</p>
+                                <p class="slds-text-body_small">Valid</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4">
+                            <div class="slds-box slds-theme_default slds-text-align_center">
+                                <p class="slds-text-heading_large" style="color:#c62828;">{errorRows}</p>
+                                <p class="slds-text-body_small">Errors</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4">
+                            <div class="slds-box slds-theme_default slds-text-align_center">
+                                <p class="slds-text-heading_large slds-text-color_weak" style="font-size:12px;word-break:break-all;">{fileName}</p>
+                                <p class="slds-text-body_small">File</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Validation Error Table -->
+                    <template if:true={hasErrors}>
+                        <div class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_small" role="alert">
+                            <lightning-icon icon-name="utility:error" size="small" variant="inverse"></lightning-icon>
+                            <h2>&nbsp;{errorRows} row(s) have validation errors. Fix your file and re-upload, or proceed with valid rows only.</h2>
+                        </div>
+                        <div class="error-table slds-m-bottom_medium" style="max-height:180px;overflow-y:auto;">
+                            <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_striped slds-table_compact">
+                                <thead>
+                                    <tr>
+                                        <th>Row #</th><th>Column</th><th>Error</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={validationErrors} for:item="err">
+                                        <tr key={err.id}>
+                                            <td>{err.row}</td>
+                                            <td>{err.field}</td>
+                                            <td class="slds-text-color_error">{err.message}</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+
+                    <!-- Data Preview Table -->
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">
+                        Preview (first 10 Config records)
+                        <span class="slds-text-body_small slds-text-color_weak slds-m-left_x-small">
+                            — "# Conditions" shows how many Approval_Condition__c rows will be created per Config.
+                              Hover the cell to see all conditions.
+                        </span>
+                    </h3>
+                    <div style="overflow-x:auto;">
+                        <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_compact slds-table_col-bordered preview-table">
+                            <thead>
+                                <tr>
+                                    <!-- Row marker -->
+                                    <th style="background:#BDD7EE;min-width:30px">#</th>
+                                    <!-- Parent columns — blue -->
+                                    <th style="background:#BDD7EE;">Name</th>
+                                    <th style="background:#BDD7EE;">Process_Name</th>
+                                    <th style="background:#BDD7EE;">Object_API</th>
+                                    <th style="background:#BDD7EE;">Level_No</th>
+                                    <th style="background:#BDD7EE;">Approval_Type</th>
+                                    <th style="background:#BDD7EE;">Approver_Type</th>
+                                    <th style="background:#BDD7EE;">Approver_Value<br/><span style="font-size:9px;font-weight:400;opacity:.75;">(User name)</span></th>
+                                    <th style="background:#BDD7EE;">isSequencing</th>
+                                    <th style="background:#BDD7EE;">Active(P)</th>
+                                    <th style="background:#BDD7EE;">Condition_Met</th>
+                                    <th style="background:#BDD7EE;">Eval_Condition</th>
+                                    <th style="background:#BDD7EE;">Depends_On</th>
+                                    <!-- Child summary column — green -->
+                                    <th style="background:#C6EFCE;min-width:80px"># Conditions</th>
+                                    <th style="background:#C6EFCE;">First Criteria Field</th>
+                                    <th style="background:#C6EFCE;">First Operator</th>
+                                    <th style="background:#C6EFCE;">First Values</th>
+                                    <th style="background:#C6EFCE;">First Child Active</th>
+                                    <!-- Status -->
+                                    <th style="background:#C6EFCE;min-width:80px">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={previewRows} for:item="row">
+                                    <tr key={row.rowNum} class={row.rowClass}>
+                                        <td>{row.rowNum}</td>
+                                        <td>{row.Name}</td>
+                                        <td>{row.Process_Name__c}</td>
+                                        <td>{row.Object_API_Name__c}</td>
+                                        <td>{row.Level_Number__c}</td>
+                                        <td>{row.Approval_Type__c}</td>
+                                        <td>{row.Approver_Type__c}</td>
+                                        <td>{row.Approver_Value__c}</td>
+                                        <td>{row.isSequencing__c}</td>
+                                        <td>{row.Active__c}</td>
+                                        <td>{row.Condition_Met__c}</td>
+                                        <td>{row.Evaluation_Condition__c}</td>
+                                        <td>{row.Depends_On_Level__c}</td>
+                                        <!-- Condition count badge with full summary as title tooltip -->
+                                        <td title={row.conditionSummary}>
+                                            <span class="condition-badge">{row.conditionCount}</span>
+                                        </td>
+                                        <td>{row.previewCriteria}</td>
+                                        <td>{row.previewOperator}</td>
+                                        <td>{row.previewValues}</td>
+                                        <td>{row.previewChildAct}</td>
+                                        <td>
+                                            <template if:true={row.hasError}>
+                                                <lightning-badge label="Error" class="slds-badge_lightest" style="background:#ffebee;color:#c62828;"></lightning-badge>
+                                            </template>
+                                            <template if:false={row.hasError}>
+                                                <lightning-badge label="Valid" style="background:#e8f5e9;color:#2e7d32;"></lightning-badge>
+                                            </template>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="slds-m-top_medium slds-grid slds-grid_align-spread">
+                        <lightning-button label="Back — Re-upload" icon-name="utility:back" onclick={goToStep2}></lightning-button>
+                        <div>
+                            <template if:true={hasErrors}>
+                                <lightning-button
+                                    label="Insert Valid Rows Only"
+                                    variant="neutral"
+                                    icon-name="utility:upload"
+                                    class="slds-m-right_small"
+                                    onclick={insertValidOnly}>
+                                </lightning-button>
+                            </template>
+                            <lightning-button
+                                label="Insert All Valid Records"
+                                variant="brand"
+                                icon-name="utility:database"
+                                disabled={insertDisabled}
+                                onclick={insertRecords}>
+                            </lightning-button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 STEP 4: Insert Result
+                 ═══════════════════════════════════════════════════════════ -->
+            <template if:true={isStep4}>
+                <div class="slds-m-top_medium">
+
+                    <template if:true={isProcessing}>
+                        <div class="slds-align_absolute-center slds-p-vertical_xx-large">
+                            <lightning-spinner alternative-text="Inserting records..." size="large"></lightning-spinner>
+                            <p class="slds-m-top_medium slds-text-heading_small slds-text-align_center">Inserting records into Salesforce...</p>
+                        </div>
+                    </template>
+
+                    <template if:false={isProcessing}>
+                        <div class="slds-illustration slds-illustration_small slds-m-bottom_medium">
+                            <template if:true={insertSuccess}>
+                                <div class="slds-notify slds-notify_alert" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;" role="status">
+                                    <lightning-icon icon-name="utility:success" size="small" style="color:#2e7d32;"></lightning-icon>
+                                    <h2 class="slds-m-left_small">
+                                        &nbsp;✅ Successfully inserted <strong>{insertedCount}</strong> Config record(s)
+                                        and <strong>{insertedChildCount}</strong> Approval Condition(s).
+                                    </h2>
+                                </div>
+                            </template>
+                            <template if:false={insertSuccess}>
+                                <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+                                    <lightning-icon icon-name="utility:error" size="small" variant="inverse"></lightning-icon>
+                                    <h2>&nbsp;❌ Some records failed to insert. See errors below.</h2>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Insert Result Details -->
+                        <template if:true={insertResults}>
+                            <div style="max-height:300px;overflow-y:auto;">
+                                <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_compact">
+                                    <thead>
+                                        <tr>
+                                            <th>Row #</th>
+                                            <th>Config Name</th>
+                                            <th>Conditions Attempted</th>
+                                            <th>Conditions Inserted</th>
+                                            <th>Status</th>
+                                            <th>Detail</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={insertResults} for:item="res">
+                                            <tr key={res.rowNum}>
+                                                <td>{res.rowNum}</td>
+                                                <td>{res.name}</td>
+                                                <td class="slds-text-align_center">{res.childCount}</td>
+                                                <td class="slds-text-align_center">{res.childInserted}</td>
+                                                <td>
+                                                    <template if:true={res.success}>
+                                                        <lightning-badge label="Inserted" style="background:#e8f5e9;color:#2e7d32;"></lightning-badge>
+                                                    </template>
+                                                    <template if:false={res.success}>
+                                                        <lightning-badge label="Failed" style="background:#ffebee;color:#c62828;"></lightning-badge>
+                                                    </template>
+                                                </td>
+                                                <td class="slds-text-color_weak">{res.detail}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+
+                        <div class="slds-m-top_medium">
+                            <lightning-button
+                                label="Start New Upload"
+                                variant="brand"
+                                icon-name="utility:refresh"
+                                onclick={resetUploader}>
+                            </lightning-button>
+                        </div>
+                    </template>
+
+                </div>
+            </template>
+
+        </div>
+    </lightning-card>
+</template>

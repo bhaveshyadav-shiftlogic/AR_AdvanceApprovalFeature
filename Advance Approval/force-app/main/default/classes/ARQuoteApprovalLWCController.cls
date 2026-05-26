@@ -13,19 +13,13 @@ public with sharing class ARQuoteApprovalLWCController {
 
             String objectName = recordId.getSObjectType().getDescribe().getName();
 
-            /*
-            -----------------------------------------
-            QUERY PARENT RULES
-            -----------------------------------------
-            */
-
             List<Approval_Framework_Config__c> rules = [
-                SELECT Process_Name__c, Object_API_Name__c,
+                SELECT Process_Name__c, Object_API_Naame__c,
                        Approval_Type__c,
                        Approver_Value__c,
                        Approver_Value__r.Name, Approver_Value__r.Email, Approver_Value__r.Username,
                        Depends_On_Level__c,
-                        Active__c,
+                       Active__c,
                        Approver_Type__c, Level_Number__c,
                        isOptional__c, isSequencing__c,
                        Condition_Met__c, Evaluation_Condition__c,
@@ -47,30 +41,6 @@ public with sharing class ARQuoteApprovalLWCController {
                 throw e;
             }
 
-            System.debug('=== TOTAL RULES: ' + rules.size() + ' ===');
-            for (Approval_Framework_Config__c r : rules) {
-                System.debug(
-                    'RAW RULE >> ' +
-                    'Process: ['        + r.Process_Name__c        + ']' +
-                    ' ApprovalType: ['  + r.Approval_Type__c       + ']' +
-                    ' Level: ['         + r.Level_Number__c         + ']' +
-                    ' ConditionMet: ['  + r.Condition_Met__c        + ']' +
-                    ' EvalCondition: [' + r.Evaluation_Condition__c + ']' +
-                    ' Approver: ['      + r.Approver_Value__c       + ']' +
-                    ' ApproverName: ['  + (r.Approver_Value__r != null ? r.Approver_Value__r.Name : 'NULL') + ']' +
-                    ' Optional: ['      + r.isOptional__c           + ']' +
-                    ' Sequencing: ['    + r.isSequencing__c         + ']' +
-                    ' DependsOnLevel: ['+ r.Depends_On_Level__c     + ']' +
-                    ' Conditions: ['    + r.Approval_Conditions__r.size() + ']'
-                );
-            }
-
-            /*
-            -----------------------------------------
-            COLLECT REQUIRED FIELDS FROM CHILD CONDITIONS
-            -----------------------------------------
-            */
-
             Set<String> soqlFields = new Set<String>{ 'Id' };
 
             for (Approval_Framework_Config__c rule : rules) {
@@ -81,30 +51,12 @@ public with sharing class ARQuoteApprovalLWCController {
                 }
             }
 
-            /*
-            -----------------------------------------
-            BUILD DYNAMIC SOQL
-            -----------------------------------------
-            */
-
             String soql =
                 'SELECT ' + String.join(new List<String>(soqlFields), ', ') +
                 ' FROM ' + objectName +
                 ' WHERE Id = :recordId LIMIT 1';
 
-            System.debug('Dynamic SOQL: ' + soql);
-
             SObject record = Database.query(soql);
-
-            for (String f : soqlFields) {
-                System.debug('RECORD FIELD >> [' + f + '] = [' + record.get(f) + ']');
-            }
-
-            /*
-            -----------------------------------------
-            GROUP RULES BY PROCESS → THEN BY LEVEL
-            -----------------------------------------
-            */
 
             Map<String, Map<String, List<Approval_Framework_Config__c>>> processLevelRules =
                 new Map<String, Map<String, List<Approval_Framework_Config__c>>>();
@@ -121,7 +73,6 @@ public with sharing class ARQuoteApprovalLWCController {
                 String lvl   = rule.Level_Number__c;
 
                 if (String.isBlank(lvl)) {
-                    System.debug('WARNING — Blank Level_Number__c on rule: ' + rule.Id);
                     continue;
                 }
 
@@ -138,58 +89,16 @@ public with sharing class ARQuoteApprovalLWCController {
 
                 processLevelRules.get(pName).get(lvl).add(rule);
 
-                System.debug(
-                    'GROUPING >> Process: [' + pName + '] Level: [' + lvl + ']' +
-                    ' Approver_Value__c: [' + rule.Approver_Value__c + ']' +
-                    ' AlreadyHasApprover: [' + processLevelApprover.get(pName).containsKey(lvl) + ']'
-                );
-
                 if (rule.Approver_Value__c != null &&
                     !processLevelApprover.get(pName).containsKey(lvl)) {
                     processLevelApprover.get(pName).put(lvl, rule);
-                    System.debug(
-                        'APPROVER STORED >> Process: [' + pName + ']' +
-                        ' Level: [' + lvl + ']' +
-                        ' Approver: [' + (rule.Approver_Value__r != null ? rule.Approver_Value__r.Name : 'NULL') + ']'
-                    );
-                } else {
-                    System.debug(
-                        'APPROVER SKIPPED >> Process: [' + pName + ']' +
-                        ' Level: [' + lvl + ']' +
-                        ' Reason: ' + (rule.Approver_Value__c == null ? 'Approver_Value__c is null' : 'Level already has approver')
-                    );
                 }
             }
-
-            System.debug('=== FINAL APPROVER MAP ===');
-            for (String pName : processLevelApprover.keySet()) {
-                for (String lvl : processLevelApprover.get(pName).keySet()) {
-                    Approval_Framework_Config__c ar = processLevelApprover.get(pName).get(lvl);
-                    System.debug(
-                        'APPROVER MAP >> Process: [' + pName + ']' +
-                        ' Level: [' + lvl + ']' +
-                        ' Approver: [' + (ar.Approver_Value__r != null ? ar.Approver_Value__r.Name : 'NULL') + ']'
-                    );
-                }
-            }
-
-            System.debug('=== LEVEL ORDER MAP ===');
-            for (String pName : processLevelOrder.keySet()) {
-                System.debug('LEVEL ORDER >> Process: [' + pName + '] Levels: ' + processLevelOrder.get(pName));
-            }
-
-            /*
-            -----------------------------------------
-            EVALUATE EACH PROCESS
-            -----------------------------------------
-            */
 
             Map<String, List<MatchedRule>> matchedByProcess =
                 new Map<String, List<MatchedRule>>();
 
             for (String processName : processLevelRules.keySet()) {
-
-                System.debug('--- EVALUATING PROCESS: [' + processName + '] ---');
 
                 Map<String, List<Approval_Framework_Config__c>> levelMap    = processLevelRules.get(processName);
                 Map<String, Approval_Framework_Config__c>       approverMap = processLevelApprover.get(processName);
@@ -206,7 +115,6 @@ public with sharing class ARQuoteApprovalLWCController {
                         List<Approval_Condition__c> conditions = rule.Approval_Conditions__r;
 
                         if (conditions == null || conditions.isEmpty()) {
-                            System.debug('NO CONDITIONS on Level [' + lvl + '] — auto-qualify');
                             continue;
                         }
 
@@ -220,15 +128,6 @@ public with sharing class ARQuoteApprovalLWCController {
                             Boolean condMatched = (fieldVal != null &&
                                 evaluateCondition(fieldVal, cond.Operator__c, cond.Values__c));
                             condResults.put(i + 1, condMatched);
-
-                            System.debug(
-                                'CONDITION [' + (i + 1) + '] >> Level [' + lvl + ']' +
-                                ' Field: ['   + cond.Criteria_Field__c + ']' +
-                                ' Op: ['      + cond.Operator__c     + ']' +
-                                ' RuleVal: [' + cond.Values__c       + ']' +
-                                ' Actual: ['  + fieldVal             + ']' +
-                                ' Matched: [' + condMatched          + ']'
-                            );
                         }
 
                         Boolean ruleMatched;
@@ -252,18 +151,10 @@ public with sharing class ARQuoteApprovalLWCController {
                             }
                         }
 
-                        System.debug(
-                            'RULE RESULT >> Level [' + lvl + ']' +
-                            ' ConditionMet: [' + conditionMet + ']' +
-                            ' RuleMatched: [' + ruleMatched + ']' +
-                            ' Optional: [' + rule.isOptional__c + ']'
-                        );
-
                         if (!ruleMatched) {
                             if (rule.isOptional__c == true) {
                                 continue;
                             } else {
-                                System.debug('REQUIRED FAILED — Level [' + lvl + '] disqualified');
                                 levelQualified = false;
                                 break;
                             }
@@ -271,10 +162,8 @@ public with sharing class ARQuoteApprovalLWCController {
                     }
 
                     qualifiedLevels.put(lvl, levelQualified);
-                    System.debug('Level [' + lvl + '] qualified: [' + levelQualified + ']');
                 }
 
-                // ---- Extract up to 3 level keys ----
                 String  firstLevelKey   = levelOrder.size() > 0 ? levelOrder[0] : null;
                 String  secondLevelKey  = levelOrder.size() > 1 ? levelOrder[1] : null;
                 String  thirdLevelKey   = levelOrder.size() > 2 ? levelOrder[2] : null;
@@ -286,29 +175,12 @@ public with sharing class ARQuoteApprovalLWCController {
                 Boolean thirdLevelQual  = (thirdLevelKey  != null && qualifiedLevels.containsKey(thirdLevelKey))
                                            ? qualifiedLevels.get(thirdLevelKey)  : false;
 
-                System.debug(
-                    'RESULT >> Process: [' + processName + ']' +
-                    ' firstLevelKey: ['   + firstLevelKey  + '] qualified: [' + firstLevelQual  + ']' +
-                    ' secondLevelKey: ['  + secondLevelKey + '] qualified: [' + secondLevelQual + ']' +
-                    ' thirdLevelKey: ['   + thirdLevelKey  + '] qualified: [' + thirdLevelQual  + ']'
-                );
-
                 if (!firstLevelQual && !secondLevelQual && !thirdLevelQual) {
-                    System.debug('NO LEVELS QUALIFIED — skipping: [' + processName + ']');
                     continue;
                 }
 
                 Approval_Framework_Config__c firstApproverRule =
                     (firstLevelKey != null) ? approverMap.get(firstLevelKey) : null;
-
-                System.debug(
-                    'firstApproverRule >> ' +
-                    (firstApproverRule != null
-                        ? (firstApproverRule.Approver_Value__r != null
-                            ? firstApproverRule.Approver_Value__r.Name
-                            : 'Approver_Value__r is NULL')
-                        : 'firstApproverRule is NULL — no approver stored for level: [' + firstLevelKey + ']')
-                );
 
                 if (firstApproverRule == null) {
                     AuraHandledException ex = new AuraHandledException(
@@ -318,125 +190,67 @@ public with sharing class ARQuoteApprovalLWCController {
                     throw ex;
                 }
 
-                /*
-                -----------------------------------------
-                BUILD levelsMatched USING isSequencing__c
-                AND Depends_On_Level__c
-                (supports up to Level 3)
-                -----------------------------------------
-                */
-
                 List<MatchedRule> levelsMatched = new List<MatchedRule>();
 
-                // ---- Resolve L2 rule (if qualified) ----
                 Approval_Framework_Config__c secondApproverRule =
                     (secondLevelQual && secondLevelKey != null && approverMap.containsKey(secondLevelKey))
                         ? approverMap.get(secondLevelKey) : null;
 
-                // ---- Resolve L3 rule (if qualified) ----
                 Approval_Framework_Config__c thirdApproverRule =
                     (thirdLevelQual && thirdLevelKey != null && approverMap.containsKey(thirdLevelKey))
                         ? approverMap.get(thirdLevelKey) : null;
 
                 if (thirdApproverRule != null) {
 
-                    // ---- L3 sequencing/dependency check ----
-                    Boolean l3IsSequencing   = (thirdApproverRule.isSequencing__c == true);
-                    String  l3DependsOn      = thirdApproverRule.Depends_On_Level__c;
-
-                    System.debug(
-                        'L3 SEQUENCING CHECK >> ' +
-                        'isSequencing__c: ['    + l3IsSequencing + ']' +
-                        ' | Depends_On_Level__c: [' + l3DependsOn + ']'
-                    );
+                    Boolean l3IsSequencing = (thirdApproverRule.isSequencing__c == true);
+                    String  l3DependsOn    = thirdApproverRule.Depends_On_Level__c;
 
                     if (l3IsSequencing && String.isNotBlank(l3DependsOn)) {
 
                         if (l3DependsOn == firstLevelKey && secondApproverRule != null) {
-                            // L3 depends on L1, and L2 also exists → L1 → L2 → L3
-                            System.debug('SEQUENTIAL L1 → L2 → L3 for process: [' + processName + ']');
                             levelsMatched.add(new MatchedRule(firstApproverRule));
                             levelsMatched.add(new MatchedRule(secondApproverRule));
                             levelsMatched.add(new MatchedRule(thirdApproverRule));
 
                         } else if (l3DependsOn == firstLevelKey) {
-                            // L3 depends on L1, no L2 → L1 → L3
-                            System.debug('SEQUENTIAL L1 → L3 (no L2) for process: [' + processName + ']');
                             levelsMatched.add(new MatchedRule(firstApproverRule));
                             levelsMatched.add(new MatchedRule(thirdApproverRule));
 
                         } else if (l3DependsOn == secondLevelKey && secondApproverRule != null) {
-                            // L3 depends on L2 → L1 → L2 → L3
-                            System.debug('SEQUENTIAL L1 → L2 → L3 (L3 depends on L2) for process: [' + processName + ']');
                             levelsMatched.add(new MatchedRule(firstApproverRule));
                             levelsMatched.add(new MatchedRule(secondApproverRule));
                             levelsMatched.add(new MatchedRule(thirdApproverRule));
 
                         } else {
-                            // Dependency not satisfied — go directly to L3
-                            System.debug('DIRECT TO L3 (dependency not matched) for process: [' + processName + ']');
                             levelsMatched.add(new MatchedRule(thirdApproverRule));
                         }
 
                     } else {
-                        // Non-sequential L3 — go directly to L3
-                        System.debug('DIRECT TO L3 (non-sequential) for process: [' + processName + ']');
                         levelsMatched.add(new MatchedRule(thirdApproverRule));
                     }
 
                 } else if (secondApproverRule != null) {
 
-                    // ---- Original L2 sequencing/dependency check ----
                     Boolean l2IsSequencing = (secondApproverRule.isSequencing__c == true);
                     String  l2DependsOn    = secondApproverRule.Depends_On_Level__c;
-
-                    System.debug(
-                        'L2 SEQUENCING CHECK >> ' +
-                        'isSequencing__c: ['    + l2IsSequencing + ']' +
-                        ' | Depends_On_Level__c: [' + l2DependsOn + ']' +
-                        ' | firstLevelKey: ['   + firstLevelKey  + ']' +
-                        ' | Match: [' + (l2DependsOn == firstLevelKey) + ']'
-                    );
 
                     if (l2IsSequencing
                             && String.isNotBlank(l2DependsOn)
                             && l2DependsOn == firstLevelKey) {
 
-                        // Sequential: L1 must approve first, then L2
-                        System.debug(
-                            'SEQUENTIAL + DEPENDS ON [' + l2DependsOn + ']' +
-                            ' — Adding L1 then L2 for process: [' + processName + ']'
-                        );
                         levelsMatched.add(new MatchedRule(firstApproverRule));
                         levelsMatched.add(new MatchedRule(secondApproverRule));
 
                     } else {
-
-                        // Non-sequential or no matching dependency — go directly to L2
-                        System.debug(
-                            'DIRECT TO L2 — Reason: isSequencing=[' + l2IsSequencing + ']' +
-                            ' dependsOnLevel=[' + l2DependsOn + ']' +
-                            ' firstLevelKey=[' + firstLevelKey + ']' +
-                            ' for process: [' + processName + ']'
-                        );
                         levelsMatched.add(new MatchedRule(secondApproverRule));
                     }
 
                 } else {
-
-                    // Only L1 qualified — always route to L1
-                    System.debug('ONLY L1 QUALIFIED — Adding L1 for process: [' + processName + ']');
                     levelsMatched.add(new MatchedRule(firstApproverRule));
                 }
 
                 matchedByProcess.put(processName, levelsMatched);
             }
-
-            /*
-            -----------------------------------------
-            NO MATCH — FRIENDLY MESSAGE
-            -----------------------------------------
-            */
 
             if (matchedByProcess.isEmpty()) {
                 AuraHandledException e = new AuraHandledException(
@@ -448,15 +262,6 @@ public with sharing class ARQuoteApprovalLWCController {
                 throw e;
             }
 
-            /*
-            -----------------------------------------
-            UPDATE STATUS — uses AR_ApprovalStatusMonitor__c
-            to get the customer-configured field API name
-            -----------------------------------------
-            */
-
-            // Resolve the status field API name from the first active rule.
-            // Fallback to 'Status' if the field is not configured.
             String statusFieldApiName = 'Status';
             for (Approval_Framework_Config__c rule : rules) {
                 if (String.isNotBlank(rule.AR_ApprovalStatusMonitor__c)) {
@@ -464,18 +269,10 @@ public with sharing class ARQuoteApprovalLWCController {
                     break;
                 }
             }
-            System.debug('STATUS FIELD API NAME >> [' + statusFieldApiName + ']');
 
             SObject updateRecord = recordId.getSObjectType().newSObject(recordId);
             updateRecord.put(statusFieldApiName, 'In Review');
             update updateRecord;
-
-            /*
-            -----------------------------------------
-            BUILD FLOW INPUTS — ONE KEY PER PROCESS
-            (now supports L1, L2, and L3)
-            -----------------------------------------
-            */
 
             List<String> processNames = new List<String>(matchedByProcess.keySet());
             processNames.sort();
@@ -511,26 +308,7 @@ public with sharing class ARQuoteApprovalLWCController {
                 if (i == 0 && l1 != null) {
                     inputs.put('ObjectApiName', l1.objectName);
                 }
-
-                System.debug(
-                    '=== FLOW INPUT FOR PROCESS ===' +
-                    ' | approvalTypeKey: [' + approvalTypeKey                               + ']' +
-                    ' | processName: ['     + processName                                   + ']' +
-                    ' | FirstApprover: ['   + (l1 != null ? l1.approver      : 'NONE')      + ']' +
-                    ' | SecondApprover: ['  + (l2 != null ? l2.approver      : 'NONE')      + ']' +
-                    ' | ThirdApprover: ['   + (l3 != null ? l3.approver      : 'NONE')      + ']' +
-                    ' | ApprovalType: ['    + (l1 != null ? l1.approvalType  : 'NONE')      + ']' +
-                    ' | ApprovalLevel: ['   + (l1 != null ? l1.approvalLevel : 'NONE')      + ']'
-                );
             }
-
-            /*
-            -----------------------------------------
-            START FLOW — SINGLE INVOCATION
-            -----------------------------------------
-            */
-
-            System.debug('=== FINAL FLOW INPUTS: ' + inputs + ' ===');
 
             Flow.Interview interview = Flow.Interview.createInterview(
                 'Accelerator_Approval_Process',
@@ -549,17 +327,10 @@ public with sharing class ARQuoteApprovalLWCController {
         }
     }
 
-    /*
-    ------------------------------------------------
-    CUSTOM EXPRESSION EVALUATOR
-    ------------------------------------------------
-    */
-
     @TestVisible
     private static Boolean evaluateCustomExpression(String expression, Map<Integer, Boolean> condResults) {
 
         if (String.isBlank(expression)) {
-            System.debug('WARNING — Custom Evaluation_Condition__c is blank. Defaulting to false.');
             return false;
         }
 
@@ -567,10 +338,8 @@ public with sharing class ARQuoteApprovalLWCController {
             List<String> tokens = tokenize(expression.toUpperCase());
             Integer[] pos = new Integer[]{ 0 };
             Boolean result = parseOr(tokens, pos, condResults);
-            System.debug('CUSTOM EXPRESSION [' + expression + '] => ' + result);
             return result;
         } catch (Exception e) {
-            System.debug('ERROR evaluating custom expression [' + expression + ']: ' + e.getMessage());
             return false;
         }
     }
@@ -650,19 +419,11 @@ public with sharing class ARQuoteApprovalLWCController {
         try {
             Integer condNum = Integer.valueOf(token);
             Boolean val = condResults.containsKey(condNum) ? condResults.get(condNum) : false;
-            System.debug('TOKEN [' + condNum + '] => ' + val);
             return val;
         } catch (Exception e) {
-            System.debug('Unexpected token: ' + token);
             return false;
         }
     }
-
-    /*
-    ------------------------------------------------
-    FIELD VALUE READER
-    ------------------------------------------------
-    */
 
     private static Object getFieldValue(SObject record, String fieldPath) {
 
@@ -674,7 +435,6 @@ public with sharing class ARQuoteApprovalLWCController {
             try {
                 return record.get(fieldPath);
             } catch (Exception e) {
-                System.debug('Error reading field ' + fieldPath + ': ' + e.getMessage());
                 return null;
             }
         }
@@ -687,7 +447,6 @@ public with sharing class ARQuoteApprovalLWCController {
             try {
                 current = current.getSObject(parts[i]);
             } catch (Exception e) {
-                System.debug('Error traversing ' + parts[i] + ': ' + e.getMessage());
                 return null;
             }
         }
@@ -697,16 +456,9 @@ public with sharing class ARQuoteApprovalLWCController {
         try {
             return current.get(parts[parts.size() - 1]);
         } catch (Exception e) {
-            System.debug('Error reading final field: ' + e.getMessage());
             return null;
         }
     }
-
-    /*
-    ------------------------------------------------
-    CONDITION EVALUATOR
-    ------------------------------------------------
-    */
 
     private static Boolean evaluateCondition(Object fieldVal, String operator, String ruleVal) {
 
@@ -743,15 +495,8 @@ public with sharing class ARQuoteApprovalLWCController {
         if (op == 'CONTAINS')    return strField.toLowerCase().contains(ruleVal.toLowerCase());
         if (op == 'STARTS_WITH') return strField.toLowerCase().startsWith(ruleVal.toLowerCase());
 
-        System.debug('WARNING — Unrecognised operator: [' + operator + ']');
         return false;
     }
-
-    /*
-    ------------------------------------------------
-    INNER CLASS
-    ------------------------------------------------
-    */
 
     public class MatchedRule {
 

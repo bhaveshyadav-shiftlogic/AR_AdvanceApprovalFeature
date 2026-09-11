@@ -14,7 +14,7 @@ public with sharing class ARQuoteApprovalLWCController {
             String objectName = recordId.getSObjectType().getDescribe().getName();
 
             List<Approval_Framework_Config__c> rules = [
-                SELECT Process_Name__c, Object_API_Naame__c,
+                SELECT Process_Name__c, Object_API_Name__c,
                        Approval_Type__c,
                        Approver_Value__c,
                        Approver_Value__r.Name, Approver_Value__r.Email, Approver_Value__r.Username,

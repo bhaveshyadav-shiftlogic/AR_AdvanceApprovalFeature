@@ -106,7 +106,7 @@ private class ARQuoteApprovalLWCControllerTest {
         );
         // Requires Amount > 1000 but Amount is 500 and the rule is not optional,
         // so no process qualifies -> criteria-not-met exception.
-        addCondition(cfg.Id, 'Amount', 'Greater Than', '1000');
+        addCondition(cfg.Id, 'Amount', 'Greater than', '1000');
 
         Boolean threw = false;
         Test.startTest();
@@ -140,13 +140,15 @@ private class ARQuoteApprovalLWCControllerTest {
         Opportunity opp = buildOpportunity(5000);
         Approval_Framework_Config__c cfg = buildConfig(
             'Discount Process', 'Level 1', 'DiscountApproval',
-            false, null, 'Custom', '1 AND 2 AND 3 AND 4 AND 5', false
+            false, null, 'Custom', '1 AND 2 AND 3 AND 4 AND 5 AND 6', false
         );
-        addCondition(cfg.Id, 'Amount',       'Greater Than',              '1000');       // >
-        addCondition(cfg.Id, 'Amount',       'Greater Than or Equal To',  '5000');       // >=
-        addCondition(cfg.Id, 'Name',         'Contains',                  'Quote');       // CONTAINS
-        addCondition(cfg.Id, 'StageName',    'Equals',                    'Prospecting'); // =
-        addCondition(cfg.Id, 'Account.Name', 'Starts With',               'AR Test');     // cross-object + STARTS_WITH
+        // Exercises every allowed operator against Amount 5000 / StageName Prospecting.
+        addCondition(cfg.Id, 'Amount',    'Greater than',             '1000'); // >
+        addCondition(cfg.Id, 'Amount',    'Greater than or equal to', '5000'); // >=
+        addCondition(cfg.Id, 'Amount',    'Less than',                '10000'); // <
+        addCondition(cfg.Id, 'Amount',    'Less than or equal to',    '5000'); // <=
+        addCondition(cfg.Id, 'Amount',    'Not equals to',            '999');   // !=
+        addCondition(cfg.Id, 'StageName', 'Equals',                   'Prospecting'); // =
 
         Test.startTest();
         submitSwallowing(opp.Id);
@@ -165,7 +167,7 @@ private class ARQuoteApprovalLWCControllerTest {
             false, null, 'All', null, true  // optional
         );
         // Condition fails (Amount 500 !> 1000) but rule is optional -> level still qualifies.
-        addCondition(cfg.Id, 'Amount', 'Greater Than', '1000');
+        addCondition(cfg.Id, 'Amount', 'Greater than', '1000');
 
         Test.startTest();
         submitSwallowing(opp.Id);
